@@ -1,12 +1,27 @@
 from django.http import JsonResponse
 import requests
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 def analyze_article(request):
 
-    url = request.GET.get("url")
+    params = {
+        'q': query,
+        'apiKey': os.getenv('NEWS_API_KEY'),
+        'pageSize': 10,
+        'language': 'en',
+        'sortBy': 'publishedAt',
+    }
+
+    url = request.GET.get("https://newsapi.org/v2/everything", params=params)
+    query = "Cats need milk"
 
     if not url:
         return JsonResponse({"error": "Missing URL parameter"})
+    
+    data = url.json()
 
     bias_words = [
         "outrageous",
