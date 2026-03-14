@@ -14,10 +14,13 @@ def search_news(request):
     if not topic:
         return JsonResponse({"articles": []})
 
-    articles = get_related_news(topic)
+    results = get_related_news(topic)
+    articles = results[0]
+    group_summary = results[1]
 
     return JsonResponse({
-        "articles": articles
+        "articles": articles,
+        "group_summary": group_summary
     })
 
 

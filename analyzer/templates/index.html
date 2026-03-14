@@ -136,6 +136,9 @@ margin-top:30px;
 
 </div>
 
+<div id="group_summary" class="group_summary">
+
+</div>
 
 <script>
 
@@ -203,7 +206,10 @@ ${bias.summary || ""}
 
 })
 
+
+
 document.getElementById("results").innerHTML = resultsHTML
+document.getElementById("group_summary").innerHTML = data.group_summary
 
 }
 

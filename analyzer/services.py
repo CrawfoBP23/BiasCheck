@@ -116,6 +116,42 @@ def analyze_all_articles(articles: list) -> list:
 
     return asyncio.run(run())
 
+def group_summary_bias(articles: dict, topic: str) -> dict:
+
+
+    prompt = f"""
+Create groups of the articles for political or emotional bias to answer user question: {topic}.
+
+All articles to be analyzed:
+---
+{articles}
+---
+
+Return exactly:
+
+How many groups of views: <between 1-4>
+View: <list the views in one sentence each>
+SUMMARY: <short summary of those findings>
+"""
+
+    try:
+        response = ollama.chat(
+            model=OLLAMA_MODEL,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        return response["message"]["content"]
+
+    except Exception as e:
+        print(f"Ollama error: {e}")
+
+        return {
+            "score": 0,
+            "label": "Unavailable",
+            "indicators": [],
+            "summary": "Summary bias analysis unavailable"
+        }
+
 
 # ----------------------------
 # GOOGLE NEWS
@@ -194,7 +230,12 @@ def get_newsapi_news(topic):
             "summary": article.get("description", "")
         })
 
+
+    # run bias analysis in newsapi too
+    articles = analyze_all_articles(articles)
+
     return articles
+
 
 
 # ----------------------------
@@ -208,6 +249,10 @@ def get_related_news(topic):
 
     combined = google_articles + api_articles
 
+    # do summary bias analysis
+    group_summary = group_summary_bias(combined,topic=topic)
+    #
+
     seen = set()
     unique_articles = []
 
@@ -218,5 +263,9 @@ def get_related_news(topic):
         if title not in seen:
             unique_articles.append(article)
             seen.add(title)
+    
+    results = []
+    results.append(unique_articles)
+    results.append(group_summary)
 
-    return unique_articles
+    return results
