@@ -131,7 +131,7 @@ Return exactly:
 
 How many groups of views: <between 1-4>
 View: <list the views in one sentence each>
-SUMMARY: <short summary of those findings>
+SUMMARY: <short summary of those findings and conclude the user query wether the question is bias or not>
 """
 
     try:

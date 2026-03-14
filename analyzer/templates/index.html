@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -110,6 +111,7 @@ height:100%;
 font-size:18px;
 color:#666;
 margin-top:30px;
+text-align:center;
 }
 
 
@@ -161,8 +163,11 @@ if(!topic){
 return
 }
 
+document.getElementById("results").style.display = 'block';
 document.getElementById("results").innerHTML =
-'<div class="loading">Analysing news articles...</div>'
+`<div class="loading"><img src="{% static 'Loading_icon.gif' %}" /><br/>Analysing news articles...</div>`
+
+document.getElementById("group-summary").style.display = 'none';
 
 const response = await fetch(`/api/search/?topic=${topic}`)
 
