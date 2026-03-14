@@ -103,7 +103,6 @@ margin-top:6px;
 
 .bias-fill{
 height:100%;
-background:#ff4d4d;
 }
 
 .loading{
@@ -160,12 +159,14 @@ const data = await response.json()
 let resultsHTML = ""
 
 data.articles.forEach(article => {
-
+console.log(article.bias)
 const bias = article.bias || {}
 
 const score = bias.score || 0
 const percent = ((score + 10) / 20) * 100
-
+const r = Math.round(255 * (percent / 100))
+const g = Math.round(255 * (1 - percent / 100))
+const color = `rgb(${r}, ${g}, 0)`
 resultsHTML += `
 
 <div class="article">
@@ -184,10 +185,10 @@ ${article.summary || ""}
 
 <div class="bias-box">
 
-<strong>Bias:</strong> ${bias.label || "Unknown"}
+<strong>Political position:</strong> ${bias.label || "Unknown"}
 
 <div class="bias-bar">
-<div class="bias-fill" style="width:${percent}%"></div>
+<div class="bias-fill" style="width:${percent}%; background:rgb(${Math.round(255*(percent/100))}, ${Math.round(255*(1-percent/100))}, 0)"></div>
 </div>
 
 <p>
