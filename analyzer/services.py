@@ -8,7 +8,6 @@ load_dotenv()
 
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 
-
 def get_google_news(topic):
 
     encoded_topic = quote(topic)
@@ -20,10 +19,15 @@ def get_google_news(topic):
     articles = []
 
     for entry in feed.entries[:5]:
+
+        source = entry.get("source", {}).get("title", "Google News")
+
         articles.append({
             "title": entry.title,
-            "source": "Google News",
-            "url": entry.link
+            "source": source,
+            "url": entry.link,
+            "published": entry.get("published", ""),
+            "summary": entry.get("summary", "")
         })
 
     return articles
