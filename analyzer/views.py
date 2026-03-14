@@ -1,5 +1,11 @@
 from django.http import JsonResponse
 import requests
+from django.shortcuts import render
+
+
+def home(request):
+    return render(request, 'index.html')
+
 
 def analyze_article(request):
 
@@ -26,3 +32,4 @@ def analyze_article(request):
         "bias_score": score,
         "message": "Moderate bias detected" if score > 2 else "Low bias"
     })
+
