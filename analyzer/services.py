@@ -3,31 +3,16 @@ import os
 import feedparser
 from dotenv import load_dotenv
 from urllib.parse import quote
-import trafilatura
-from googlenewsdecoder import new_decoderv1
+from functools import lru_cache
 
 load_dotenv()
 
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 
 
-def get_article_content(url: str) -> str:
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
-        }
-
-        response = requests.get(url, headers=headers, timeout=10)
-
-        content = trafilatura.extract(response.text)
-
-        return content or ""
-
-    except Exception as e:
-        print(f"Failed to fetch content: {e}")
-        return ""
-
-
+# ----------------------------
+# GOOGLE NEWS
+# ----------------------------
 def get_google_news(topic):
 
     encoded_topic = quote(topic)
@@ -38,29 +23,24 @@ def get_google_news(topic):
 
     articles = []
 
-    for entry in feed.entries[:5]:
-
-        try:
-            decoded = new_decoderv1(entry.link)
-            real_url = decoded.get("decoded_url", entry.link)
-        except Exception as e:
-            print(f"Could not decode URL: {e}")
-            real_url = entry.link
+    for entry in feed.entries[:6]:
 
         source = entry.get("source", {}).get("title", "Google News")
 
         articles.append({
             "title": entry.title,
             "source": source,
-            "url": real_url,
+            "url": entry.link,
             "published": entry.get("published", ""),
-            "summary": entry.get("summary", ""),
-            "content": get_article_content(real_url)
+            "summary": entry.get("summary", "")
         })
 
     return articles
 
 
+# ----------------------------
+# NEWS API
+# ----------------------------
 def get_newsapi_news(topic):
 
     url = "https://newsapi.org/v2/everything"
@@ -70,12 +50,15 @@ def get_newsapi_news(topic):
         "searchIn": "title,description",
         "language": "en",
         "sortBy": "relevancy",
-        "pageSize": 15,
+        "pageSize": 6,
         "excludeDomains": "reddit.com,medium.com",
         "apiKey": NEWS_API_KEY
     }
 
-    response = requests.get(url, params=params)
+    try:
+        response = requests.get(url, params=params, timeout=6)
+    except:
+        return []
 
     if response.status_code != 200:
         return []
@@ -90,14 +73,17 @@ def get_newsapi_news(topic):
             "title": article["title"],
             "source": article["source"]["name"],
             "url": article["url"],
-            "summary": article.get("description", ""),
             "published": article.get("publishedAt", ""),
-            "content": get_article_content(article["url"])
+            "summary": article.get("description", "")
         })
 
     return articles
 
 
+# ----------------------------
+# COMBINE + CACHE
+# ----------------------------
+@lru_cache(maxsize=50)
 def get_related_news(topic):
 
     google_articles = get_google_news(topic)
