@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Results – {{ query }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
+    .article { border-bottom: 1px solid #ddd; padding: 20px 0; }
+    .article h2 { margin: 0 0 8px; font-size: 18px; }
+    .article h2 a { text-decoration: none; color: #1a0dab; }
+    .article h2 a:hover { text-decoration: underline; }
+    .meta { color: #888; font-size: 13px; margin-bottom: 8px; }
+    .source { font-weight: bold; color: #444; }
+    img { max-width: 100%; border-radius: 6px; margin-top: 10px; }
+    .back { display: inline-block; margin-bottom: 20px; color: #555; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <a class="back" href="/">← New Search</a>
+  <h1>Results for "{{ query }}"</h1>
+  <p>{{ total }} articles found</p>
+
+  {% if articles %}
+    {% for article in articles %}
+      <div class="article">
+        <h2><a href="{{ article.url }}" target="_blank">{{ article.title }}</a></h2>
+        <div class="meta">
+          <span class="source">{{ article.source.name }}</span> ·
+          {{ article.publishedAt|slice:":10" }}
+        </div>
+        <p>{{ article.description }}</p>
+        {% if article.urlToImage %}
+          <img src="{{ article.urlToImage }}" alt="article image" />
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% else %}
+    <p>No articles found. Try a different search term.</p>
+  {% endif %}
+</body>
+</html>
