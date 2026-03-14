@@ -204,7 +204,7 @@ def get_newsapi_news(topic):
         "language": "en",
         "sortBy": "relevancy",
         "pageSize": 6,
-        "excludeDomains": "reddit.com,medium.com",
+        "excludeDomains": "reddit.com,medium.com,twitter.com,x.com,facebook.com,instagram.com,tiktok.com,youtube.com,substack.com,blogspot.com,wordpress.com,tumblr.com,quora.com,pinterest.com,linkedin.com,4chan.org,8kun.top,gab.com,parler.com,breitbart.com,infowars.com,naturalnews.com,beforeitsnews.com,thegatewaypundit.com,zerohedge.com,rt.com,sputniknews.com",
         "apiKey": NEWS_API_KEY
     }
 
