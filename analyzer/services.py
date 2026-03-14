@@ -4,10 +4,117 @@ import feedparser
 from dotenv import load_dotenv
 from urllib.parse import quote
 from functools import lru_cache
+import trafilatura
+from googlenewsdecoder import new_decoderv1
+import ollama
+import asyncio
 
 load_dotenv()
 
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
+
+
+# ----------------------------
+# ARTICLE CONTENT EXTRACTION
+# ----------------------------
+def get_article_content(url: str) -> str:
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0"
+        }
+
+        response = requests.get(url, headers=headers, timeout=8)
+        content = trafilatura.extract(response.text)
+
+        return content or ""
+
+    except Exception as e:
+        print(f"Failed to fetch content: {e}")
+        return ""
+
+
+# ----------------------------
+# OLLAMA BIAS ANALYSIS
+# ----------------------------
+async def analyze_bias(article: dict) -> dict:
+
+    content = get_article_content(article["url"]) if article["url"] else ""
+
+    prompt = f"""
+Analyze the following news article for political or emotional bias.
+
+Title: {article['title']}
+Content: {content[:2000]}
+
+Return exactly:
+
+SCORE: <number between -10 and +10>
+LABEL: <Far Left | Left | Center-Left | Center | Center-Right | Right | Far Right>
+INDICATORS: <comma separated list>
+SUMMARY: <short explanation>
+"""
+
+    try:
+        client = ollama.AsyncClient()
+
+        response = await client.chat(
+            model=OLLAMA_MODEL,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        parsed = parse_response(response["message"]["content"])
+
+    except Exception as e:
+        print(f"Ollama error: {e}")
+
+        parsed = {
+            "score": 0,
+            "label": "Unavailable",
+            "indicators": [],
+            "summary": "Bias analysis unavailable"
+        }
+
+    return {**article, "bias": parsed}
+
+
+def parse_response(text: str) -> dict:
+
+    result = {
+        "score": 0,
+        "label": "Center",
+        "indicators": [],
+        "summary": ""
+    }
+
+    for line in text.strip().splitlines():
+
+        if line.startswith("SCORE:"):
+            try:
+                result["score"] = float(line.replace("SCORE:", "").strip())
+            except:
+                pass
+
+        elif line.startswith("LABEL:"):
+            result["label"] = line.replace("LABEL:", "").strip()
+
+        elif line.startswith("INDICATORS:"):
+            raw = line.replace("INDICATORS:", "").strip()
+            result["indicators"] = [i.strip() for i in raw.split(",") if i.strip()]
+
+        elif line.startswith("SUMMARY:"):
+            result["summary"] = line.replace("SUMMARY:", "").strip()
+
+    return result
+
+
+def analyze_all_articles(articles: list) -> list:
+
+    async def run():
+        tasks = [analyze_bias(article) for article in articles]
+        return await asyncio.gather(*tasks)
+
+    return asyncio.run(run())
 
 
 # ----------------------------
@@ -23,17 +130,27 @@ def get_google_news(topic):
 
     articles = []
 
-    for entry in feed.entries[:6]:
+    for entry in feed.entries[:5]:
+
+        try:
+            decoded = new_decoderv1(entry.link)
+            real_url = decoded.get("decoded_url", entry.link)
+        except Exception as e:
+            print(f"Could not decode URL: {e}")
+            real_url = entry.link
 
         source = entry.get("source", {}).get("title", "Google News")
 
         articles.append({
             "title": entry.title,
             "source": source,
-            "url": entry.link,
+            "url": real_url,
             "published": entry.get("published", ""),
             "summary": entry.get("summary", "")
         })
+
+    # run bias analysis
+    articles = analyze_all_articles(articles)
 
     return articles
 
