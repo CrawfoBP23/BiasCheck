@@ -156,6 +156,48 @@ SUMMARY: <short summary of those findings>
 # ----------------------------
 # GOOGLE NEWS
 # ----------------------------
+EXCLUDED_DOMAINS = [
+    # Social media
+    "reddit.com",
+    "twitter.com",
+    "x.com",
+    "facebook.com",
+    "instagram.com",
+    "tiktok.com",
+    "youtube.com",
+    "linkedin.com",
+    "pinterest.com",
+
+    # Blogs & opinion
+    "medium.com",
+    "substack.com",
+    "blogspot.com",
+    "wordpress.com",
+    "tumblr.com",
+    "quora.com",
+
+    # Fringe & extremist
+    "4chan.org",
+    "8kun.top",
+    "gab.com",
+    "parler.com",
+
+    # Known misinformation
+    "breitbart.com",
+    "infowars.com",
+    "naturalnews.com",
+    "beforeitsnews.com",
+    "thegatewaypundit.com",
+    "zerohedge.com",
+
+    # State propaganda
+    "rt.com",
+    "sputniknews.com",
+]
+
+def is_excluded(url: str) -> bool:
+    return any(domain in url for domain in EXCLUDED_DOMAINS)
+
 def get_google_news(topic):
 
     encoded_topic = quote(topic)
@@ -166,7 +208,9 @@ def get_google_news(topic):
 
     articles = []
 
-    for entry in feed.entries[:5]:
+    for entry in feed.entries[:10]:
+        if is_excluded(entry.link):
+            continue  # skip excluded domains
 
         try:
             decoded = new_decoderv1(entry.link)

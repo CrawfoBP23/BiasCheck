@@ -167,14 +167,14 @@ const percent = ((score + 10) / 20) * 100
 biasbar_qualitative = "Not biased"
 if (percent === 0) {
     biasbar_qualitative = "Not biased"
-} else if (percent < 25) {
+} else if (percent <= 20) {
     biasbar_qualitative = "Minimal bias"
-} else if (percent < 50) {
+} else if (percent <= 60) {
     biasbar_qualitative = "Moderate bias"
-} else if (percent < 75) {
+} else if (percent <= 80) {
     biasbar_qualitative = "Strong bias"
 } else {
-    biasbar_qualitative = "Highly biased"
+    biasbar_qualitative = "Highly biased!"
 }
 const r = Math.round(255 * (percent / 100))
 const g = Math.round(255 * (1 - percent / 100))
