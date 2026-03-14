@@ -58,6 +58,7 @@ background:#0056b3;
 }
 
 .results{
+display: none;
 margin-top:30px;
 text-align:left;
 }
@@ -65,7 +66,7 @@ text-align:left;
 .article{
 background:white;
 padding:20px;
-margin-bottom:20px;
+margin:0px 10px 20px 10px;
 border-radius:10px;
 box-shadow:0px 3px 8px rgba(0,0,0,0.08);
 }
@@ -113,11 +114,12 @@ margin-top:30px;
 
 
 .group-summary{
+display: none;
 background:white;
 padding:20px;
 padding-left: 30px;
 padding-right: 30px;
-margin-bottom:20px;
+margin:0px 10px 20px 10px;
 border-radius:10px;
 box-shadow:0px 3px 8px rgba(0,0,0,0.08);
 }
@@ -166,7 +168,7 @@ const response = await fetch(`/api/search/?topic=${topic}`)
 
 const data = await response.json()
 
-let resultsHTML = ""
+let resultsHTML = `<p style='text-align:center'>There are ${data.articles.length} articles found</p>`
 
 data.articles.forEach(article => {
 console.log(article.bias)
@@ -231,8 +233,11 @@ ${bias.summary || ""}
 })
 
 
-
+document.getElementById("results").style.display = 'block';
 document.getElementById("results").innerHTML = resultsHTML
+
+
+document.getElementById("group-summary").style.display = 'block';
 document.getElementById("group-summary").innerHTML = data.group_summary
 
 }
