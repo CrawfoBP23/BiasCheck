@@ -14,8 +14,9 @@ def get_related_news(topic):
     params = {
         "q": topic,
         "apiKey": NEWS_API_KEY,
-        "pageSize": 5,
-        "language": "en"
+        "pageSize": 100,
+        "language": "en",
+        "searchIn": ["title", "description"],
     }
 
     response = requests.get(url, params=params)
@@ -32,7 +33,10 @@ def get_related_news(topic):
         articles.append({
             "title": article["title"],
             "source": article["source"]["name"],
-            "url": article["url"]
+            "url": article["url"],
+            "description": article["description"],
         })
+
+    print(articles)
 
     return articles
