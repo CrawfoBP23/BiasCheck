@@ -1,37 +1,49 @@
 <!DOCTYPE html>
 <html>
 <head>
+
 <title>BiasCheck</title>
 
 <style>
 
 body{
-font-family: Arial;
+font-family: Arial, Helvetica, sans-serif;
 background:#f4f6f9;
 text-align:center;
-margin-top:100px;
+margin:0;
+padding-top:80px;
 }
 
 .container{
-width:600px;
+width:750px;
 margin:auto;
 }
 
 h1{
-font-size:40px;
+font-size:42px;
 color:#333;
+margin-bottom:10px;
+}
+
+.subtitle{
+color:#666;
+margin-bottom:40px;
+}
+
+.search-area{
+margin-bottom:30px;
 }
 
 .search-bar{
-width:80%;
-padding:15px;
+width:70%;
+padding:14px;
 font-size:18px;
 border-radius:8px;
 border:1px solid #ccc;
 }
 
 button{
-padding:15px 25px;
+padding:14px 24px;
 font-size:18px;
 background:#007bff;
 color:white;
@@ -46,20 +58,63 @@ background:#0056b3;
 }
 
 .results{
-margin-top:40px;
+margin-top:30px;
 text-align:left;
 }
 
 .article{
 background:white;
-padding:15px;
-margin-bottom:15px;
-border-radius:8px;
-box-shadow:0px 2px 5px rgba(0,0,0,0.1);
+padding:20px;
+margin-bottom:20px;
+border-radius:10px;
+box-shadow:0px 3px 8px rgba(0,0,0,0.08);
+}
+
+.article h3{
+margin-top:0;
+}
+
+.meta{
+color:#777;
+font-size:14px;
+margin-bottom:8px;
+}
+
+.summary{
+margin-top:10px;
+margin-bottom:12px;
+}
+
+.bias-box{
+background:#f9f9f9;
+padding:12px;
+border-radius:6px;
+margin-top:10px;
+font-size:14px;
+}
+
+.bias-bar{
+height:8px;
+background:#e0e0e0;
+border-radius:4px;
+overflow:hidden;
+margin-top:6px;
+}
+
+.bias-fill{
+height:100%;
+background:#ff4d4d;
+}
+
+.loading{
+font-size:18px;
+color:#666;
+margin-top:30px;
 }
 
 </style>
 </head>
+
 
 <body>
 
@@ -67,21 +122,33 @@ box-shadow:0px 2px 5px rgba(0,0,0,0.1);
 
 <h1>BiasCheck</h1>
 
-<p>Search for news topics and analyze articles</p>
+<p class="subtitle">Search news topics and analyze media bias</p>
+
+<div class="search-area">
 
 <input id="topic" class="search-bar" placeholder="Search topic...">
 
 <button onclick="searchNews()">Search</button>
 
+</div>
+
 <div id="results" class="results"></div>
 
 </div>
+
 
 <script>
 
 async function searchNews(){
 
 const topic = document.getElementById("topic").value
+
+if(!topic){
+return
+}
+
+document.getElementById("results").innerHTML =
+'<div class="loading">Analyzing news articles...</div>'
 
 const response = await fetch(`/api/search/?topic=${topic}`)
 
@@ -91,14 +158,47 @@ let resultsHTML = ""
 
 data.articles.forEach(article => {
 
+const bias = article.bias || {}
+
+const score = bias.score || 0
+const percent = ((score + 10) / 20) * 100
+
 resultsHTML += `
+
 <div class="article">
+
 <h3>${article.title}</h3>
-<p>${article.source}</p>
-<p>${article.description}</p>
-<a href="${article.url}" target="_blank">Read Article</a>
-<p>${article.bias}</p>
+
+<div class="meta">
+${article.source || "Unknown Source"}
 </div>
+
+<p class="summary">
+${article.summary || ""}
+</p>
+
+<a href="${article.url}" target="_blank">Read Article</a>
+
+<div class="bias-box">
+
+<strong>Bias:</strong> ${bias.label || "Unknown"}
+
+<div class="bias-bar">
+<div class="bias-fill" style="width:${percent}%"></div>
+</div>
+
+<p>
+<strong>Indicators:</strong> ${(bias.indicators || []).join(", ")}
+</p>
+
+<p>
+${bias.summary || ""}
+</p>
+
+</div>
+
+</div>
+
 `
 
 })
@@ -107,13 +207,17 @@ document.getElementById("results").innerHTML = resultsHTML
 
 }
 
-// Allow pressing Enter in the input to trigger the search
+
+// allow Enter key to search
+
 document.getElementById("topic").addEventListener("keydown", function(event) {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    searchNews();
-  }
-});
+
+if (event.key === "Enter") {
+event.preventDefault()
+searchNews()
+}
+
+})
 
 </script>
 
