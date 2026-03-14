@@ -49,7 +49,7 @@ Content: {content[:2000]}
 
 Return exactly:
 
-SCORE: <number between -10 and +10, based off of how much bias you detect in the article>
+SCORE: <number between -10 and +10, use the FULL range aggressively — obvious tabloid or opinionated pieces should score 8-10, balanced reporting should score around 0, truly neutral wire reports score -10>
 LABEL: <Far Left | Left | Center-Left | Center | Center-Right | Right | Far Right>
 INDICATORS: <comma separated list>
 SUMMARY: <short explanation>
