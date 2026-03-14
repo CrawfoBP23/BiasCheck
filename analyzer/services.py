@@ -57,6 +57,7 @@ async def analyze_bias(article: dict) -> dict:
 
 
 def analyze_all_articles(articles: list) -> list:
+    """Run all articles through Ollama in one go."""
     async def run():
         tasks = [analyze_bias(article) for article in articles]
         return await asyncio.gather(*tasks)
@@ -92,9 +93,13 @@ def get_article_content(url: str) -> str:
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
         }
+
         response = requests.get(url, headers=headers, timeout=10)
+
         content = trafilatura.extract(response.text)
+
         return content or ""
+
     except Exception as e:
         print(f"Failed to fetch content: {e}")
         return ""
@@ -117,12 +122,15 @@ def get_google_news(topic):
             print(f"Could not decode URL: {e}")
             real_url = entry.link
 
+        source = entry.get("source", {}).get("title", "Google News")
+
         articles.append({
             "title": entry.title,
-            "source": "Google News",
+            "source": source,
             "url": real_url,
-            # "content": get_article_content(real_url)
-            # "analyze": analyze_bias(title=entry.title, url=real_url)
+            "published": entry.get("published", ""),
+            "summary": entry.get("summary", ""),
+            "content": get_article_content(real_url)
         })
 
     articles = analyze_all_articles(articles)
@@ -158,6 +166,8 @@ def get_newsapi_news(topic):
             "title": article["title"],
             "source": article["source"]["name"],
             "url": article["url"],
+            "summary": article.get("description", ""),
+            "published": article.get("publishedAt", ""),
             "content": get_article_content(article["url"])
         })
 
@@ -167,7 +177,7 @@ def get_newsapi_news(topic):
 def get_related_news(topic):
 
     google_articles = get_google_news(topic)
-    api_articles = get_newsapi_news(topic)
+    # api_articles = get_newsapi_news(topic)
 
     combined = google_articles 
     # + api_articles

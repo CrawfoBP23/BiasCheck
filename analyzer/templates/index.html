@@ -95,7 +95,9 @@ resultsHTML += `
 <div class="article">
 <h3>${article.title}</h3>
 <p>${article.source}</p>
+<p>${article.description}</p>
 <a href="${article.url}" target="_blank">Read Article</a>
+<p>${article.bias}</p>
 </div>
 `
 
@@ -104,6 +106,14 @@ resultsHTML += `
 document.getElementById("results").innerHTML = resultsHTML
 
 }
+
+// Allow pressing Enter in the input to trigger the search
+document.getElementById("topic").addEventListener("keydown", function(event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    searchNews();
+  }
+});
 
 </script>
 
