@@ -1,21 +1,45 @@
 import requests
 import os
+import feedparser
 from dotenv import load_dotenv
+from urllib.parse import quote
 
 load_dotenv()
 
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 
 
-def get_related_news(topic):
+def get_google_news(topic):
+
+    encoded_topic = quote(topic)
+    url = f"https://news.google.com/rss/search?q={topic}&hl=en-US&gl=US&ceid=US:en"
+
+    feed = feedparser.parse(url)
+
+    articles = []
+
+    for entry in feed.entries[:5]:
+        articles.append({
+            "title": entry.title,
+            "source": "Google News",
+            "url": entry.link
+        })
+
+    return articles
+
+
+def get_newsapi_news(topic):
 
     url = "https://newsapi.org/v2/everything"
 
     params = {
         "q": topic,
-        "apiKey": NEWS_API_KEY,
+        "searchIn": "title,description",
+        "language": "en",
+        "sortBy": "relevancy",
         "pageSize": 5,
-        "language": "en"
+        "excludeDomains": "reddit.com,medium.com",
+        "apiKey": NEWS_API_KEY
     }
 
     response = requests.get(url, params=params)
@@ -28,7 +52,6 @@ def get_related_news(topic):
     articles = []
 
     for article in data.get("articles", []):
-
         articles.append({
             "title": article["title"],
             "source": article["source"]["name"],
@@ -36,3 +59,23 @@ def get_related_news(topic):
         })
 
     return articles
+
+
+def get_related_news(topic):
+
+    google_articles = get_google_news(topic)
+    api_articles = get_newsapi_news(topic)
+
+    combined = google_articles + api_articles
+
+    seen = set()
+    unique_articles = []
+
+    for article in combined:
+        title = article["title"]
+
+        if title not in seen:
+            unique_articles.append(article)
+            seen.add(title)
+
+    return unique_articles
