@@ -111,6 +111,17 @@ color:#666;
 margin-top:30px;
 }
 
+
+.group-summary{
+background:white;
+padding:20px;
+padding-left: 30px;
+padding-right: 30px;
+margin-bottom:20px;
+border-radius:10px;
+box-shadow:0px 3px 8px rgba(0,0,0,0.08);
+}
+
 </style>
 </head>
 
@@ -133,11 +144,10 @@ margin-top:30px;
 
 <div id="results" class="results"></div>
 
-</div>
-
-<div id="group_summary" class="group_summary">
+<div id="group-summary" class="group-summary"></div>
 
 </div>
+
 
 <script>
 
@@ -223,7 +233,7 @@ ${bias.summary || ""}
 
 
 document.getElementById("results").innerHTML = resultsHTML
-document.getElementById("group_summary").innerHTML = data.group_summary
+document.getElementById("group-summary").innerHTML = data.group_summary
 
 }
 
