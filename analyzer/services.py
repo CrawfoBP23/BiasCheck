@@ -12,7 +12,8 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 def get_google_news(topic):
 
     encoded_topic = quote(topic)
-    url = f"https://news.google.com/rss/search?q={topic}&hl=en-US&gl=US&ceid=US:en"
+
+    url = f"https://news.google.com/rss/search?q={encoded_topic}&hl=en-US&gl=US&ceid=US:en"
 
     feed = feedparser.parse(url)
 
@@ -72,7 +73,7 @@ def get_related_news(topic):
     unique_articles = []
 
     for article in combined:
-        title = article["title"]
+        title = article["title"].lower()
 
         if title not in seen:
             unique_articles.append(article)
