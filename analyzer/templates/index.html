@@ -365,7 +365,15 @@ data.articles.forEach((article, i) => {
     const p = positions[i]
     const source = (article.source || 'Unknown').replace(/"/g, '&quot;').replace(/&/g, '&amp;')
     const framing = (article.key_framing || '—').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/&/g, '&amp;')
-    const color = colors[i % colors.length]
+    const label = (article.bias || {}).label || ""
+    let color = "#888"
+    if (label.includes("Far Left")) color = "#1d4ed8"
+    else if (label.includes("Left")) color = "#3b82f6"
+    else if (label.includes("Center-Left")) color = "#93c5fd"
+    else if (label.includes("Center-Right")) color = "#fca5a5"
+    else if (label.includes("Right") && label.includes("Far")) color = "#b91c1c"
+    else if (label.includes("Right")) color = "#ef4444"
+    else if (label.includes("Center")) color = "#22c55e"
     circlesHTML += `<circle class="chart-point" data-source="${source}" data-framing="${framing}" data-article-index="${i}" cx="${p.cx}" cy="${p.cy}" r="5" fill="${color}"/>`
     circleCoords.push({ source: article.source, cx: p.cx, cy: p.cy })
 })
@@ -386,6 +394,15 @@ const svgContent = `
     <text x="${margin.left + innerW}" y="${centerY + 4}" text-anchor="end" dominant-baseline="middle" font-size="11" fill="#444">Evidence based</text>
     ${circlesHTML}
   </svg>
+  <div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;margin-top:14px;font-size:13px;">
+    <span style="display:flex;align-items:center;gap:5px;"><svg width="12" height="12"><circle cx="6" cy="6" r="6" fill="#1d4ed8"/></svg> Far Left</span>
+    <span style="display:flex;align-items:center;gap:5px;"><svg width="12" height="12"><circle cx="6" cy="6" r="6" fill="#3b82f6"/></svg> Left</span>
+    <span style="display:flex;align-items:center;gap:5px;"><svg width="12" height="12"><circle cx="6" cy="6" r="6" fill="#93c5fd"/></svg> Centre-Left</span>
+    <span style="display:flex;align-items:center;gap:5px;"><svg width="12" height="12"><circle cx="6" cy="6" r="6" fill="#22c55e"/></svg> Centre</span>
+    <span style="display:flex;align-items:center;gap:5px;"><svg width="12" height="12"><circle cx="6" cy="6" r="6" fill="#fca5a5"/></svg> Centre-Right</span>
+    <span style="display:flex;align-items:center;gap:5px;"><svg width="12" height="12"><circle cx="6" cy="6" r="6" fill="#ef4444"/></svg> Right</span>
+    <span style="display:flex;align-items:center;gap:5px;"><svg width="12" height="12"><circle cx="6" cy="6" r="6" fill="#b91c1c"/></svg> Far Right</span>
+  </div>
 `
 document.getElementById("framing-chart-wrap").style.display = 'block'
 document.getElementById("framing-chart-wrap").innerHTML = svgContent
