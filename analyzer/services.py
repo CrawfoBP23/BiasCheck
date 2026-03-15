@@ -105,7 +105,7 @@ SUMMARY: <short explanation>
                 if _is_rate_limit_error(e) and attempt < GROQ_MAX_RETRIES - 1:
                     wait = _retry_after(e) * (2 ** attempt)
                     print(f"Rate limit hit, retrying in {wait:.0f}s (attempt {attempt + 1}/{GROQ_MAX_RETRIES})...")
-                    await asyncio.sleep(w)
+                    await asyncio.sleep(wait)
                 else:
                     break
         print(f"Ollama error: {last_error}")
@@ -266,7 +266,7 @@ SUMMARY: <short summary of those findings and conclude the user query wether the
             if _is_rate_limit_error(e) and attempt < GROQ_MAX_RETRIES - 1:
                 wait = _retry_after(e) * (2 ** attempt)
                 print(f"Rate limit (group summary), retrying in {wait:.0f}s...")
-                time.sleep(w)
+                time.sleep(wait)
             else:
                 break
     print(f"Ollama error: {last_error}")
