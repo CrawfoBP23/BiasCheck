@@ -82,10 +82,12 @@ Content: {content[:2000]}
 
 First decide: was there substantive article content to analyze? Answer no if the page had only a paywall, "enable JavaScript", "disable ad blocker", login prompt, or too little real reporting to assess bias.
 
+The bias scale runs from NO BIAS to HEAVILY BIASED. You MUST use the full range: if the article is straight factual reporting with no political or emotional slant, give -10 (no bias). Do not assume articles are somewhat biased; many deserve -10 to -5. Only use positive scores when there is real slant, opinion, or advocacy.
+
 Return exactly (use the FULL 0-10 range for EVIDENCE and PERSUASIVE; differentiate clearly between articles):
 
 ANALYZABLE: <yes or no — no if content was not substantive or was only placeholder/instructions>
-SCORE: <number between -10 and +10, use the FULL range aggressively — obvious tabloid or opinionated pieces should score 8-10, balanced reporting should score around 0, truly neutral wire reports score -10>
+SCORE: <number -10 to +10: -10 = no bias (factual, balanced, neutral wire style), 0 = mild slant, +10 = heavily biased/opinion piece — use the full range; give -10 when appropriate>
 LABEL: <Far Left | Left | Center-Left | Center | Center-Right | Right | Far Right>
 EVIDENCE: <single number 0-10 only; 0=purely speculative/opinion, 10=strongly evidence-based and factual; use decimals if needed e.g. 3 or 7.5>
 PERSUASIVE: <single number 0-10 only; 0=neutral/balanced, 10=highly persuasive/advocacy; use decimals if needed>
@@ -244,46 +246,35 @@ def analyze_all_articles(articles: list) -> list:
 
     return asyncio.run(run())
 
-def group_summary_bias(articles: dict, topic: str) -> dict:
-
-
-    prompt = f"""
-Create groups of the articles for political or emotional bias to answer user question: {topic}.
-
-All articles to be analyzed for the user query/question:
----
-{articles}
----
-
-Return exactly:
-
-VERDICT: <no bias | low bias | moderate bias | high bias>
-SUMMARY: <short summary of those findings and conclude the user query wether the question is bias or not>
-"""
-
-    last_error = None
-    for attempt in range(GROQ_MAX_RETRIES):
-        try:
-            response = Groq(api_key=os.getenv("GROQ_API_KEY")).chat.completions.create(
-                model=GROQ_MODEL,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            return parse_response_group(response.choices[0].message.content)
-        except Exception as e:
-            last_error = e
-            if _is_rate_limit_error(e) and attempt < GROQ_MAX_RETRIES - 1:
-                wait = _retry_after(e) * (2 ** attempt)
-                print(f"Rate limit (group summary), retrying in {wait:.0f}s...")
-                time.sleep(wait)
-            else:
-                break
-    print(f"Ollama error: {last_error}")
-    return {
-        "score": 0,
-        "label": "Unavailable",
-        "indicators": [],
-        "summary": "Summary bias analysis unavailable"
-    }
+def compute_verdict_from_scores(articles: list) -> dict:
+    """
+    Compute verdict and summary from per-article bias scores (no LLM).
+    Score range -10 (no bias) to +10 (heavily biased); we use average absolute value.
+    """
+    if not articles:
+        return {"verdict": "no bias", "summary": "No articles to analyze."}
+    scores = []
+    for a in articles:
+        s = (a.get("bias") or {}).get("score")
+        if s is not None:
+            try:
+                scores.append(float(s))
+            except (TypeError, ValueError):
+                pass
+    if not scores:
+        return {"verdict": "unknown", "summary": "No bias scores available."}
+    avg_abs = sum(abs(s) for s in scores) / len(scores)
+    if avg_abs < 2:
+        verdict = "no bias"
+    elif avg_abs < 4:
+        verdict = "low bias"
+    elif avg_abs < 6:
+        verdict = "moderate bias"
+    else:
+        verdict = "high bias"
+    n = len(articles)
+    summary = f"Based on {n} article{'s' if n != 1 else ''}. Average bias magnitude: {avg_abs:.1f} (scale −10 to +10). Verdict: {verdict}."
+    return {"verdict": verdict, "summary": summary}
 
 
 def get_comparative_framings(articles: list) -> list:
@@ -511,9 +502,8 @@ def get_related_news(topic):
     # Drop articles the LLM marked as unanalyzable (paywall, JS-only, no content, etc.)
     combined = [a for a in combined if (a.get("bias") or {}).get("analyzable", True)]
 
-    # do summary bias analysis
-    group_summary = group_summary_bias(combined, topic=topic)
-    #
+    # Verdict from quantitative bias scores (no extra LLM call)
+    group_summary = compute_verdict_from_scores(combined)
 
     seen = set()
     unique_articles = []
