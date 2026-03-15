@@ -262,7 +262,18 @@ document.getElementById("results").innerHTML = resultsHTML
 
 
 document.getElementById("group-summary").style.display = 'block';
-document.getElementById("group-summary").innerHTML = data.group_summary
+document.getElementById("group-summary").innerHTML = `
+
+<p>
+<strong>View(s):</strong> ${data.group_summary.view }
+</p>
+
+<p>
+<strong>Detail:</strong> ${data.group_summary.detail}
+</p>
+<p>
+<strong>Summary:</strong> ${data.group_summary.summary}
+</p>`
 
 }
 
