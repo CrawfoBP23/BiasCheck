@@ -199,20 +199,14 @@ def parse_response(text: str) -> dict:
 def parse_response_group(text: str) -> dict:
 
     result = {
-        "View(s)": 0,
-        "Detail": "",
+        "verdict": "",
         "summary": ""
     }
 
     for line in text.strip().splitlines():
 
-        if line.startswith("VIEW:"):
-            try:
-                result["view"] = float(line.replace("VIEW:", "").strip())
-            except:
-                pass
-        elif line.startswith("DETAIL:"):
-            result["detail"] = line.replace("DETAIL:", "").strip()
+        if line.startswith("VERDICT:"):
+            result["verdict"] = line.replace("VERDICT:", "").strip()
 
         elif line.startswith("SUMMARY:"):
             result["summary"] = line.replace("SUMMARY:", "").strip()
@@ -248,15 +242,14 @@ def group_summary_bias(articles: dict, topic: str) -> dict:
     prompt = f"""
 Create groups of the articles for political or emotional bias to answer user question: {topic}.
 
-All articles to be analyzed:
+All articles to be analyzed for the user query/question:
 ---
 {articles}
 ---
 
 Return exactly:
 
-VIEW: <how many groups of views between 1-4>
-DETAIL: <list the views in one sentence each>
+VERDICT: <no bias | low bias | moderate bias | high bias>
 SUMMARY: <short summary of those findings and conclude the user query wether the question is bias or not>
 """
 

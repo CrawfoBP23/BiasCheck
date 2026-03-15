@@ -204,7 +204,7 @@ color: #e6edf3;
 <body>
 
 <div class="container">
-
+<img src="{% static 'analyzer/static/biascheck-logo.png' %}" alt="BiasCheck" width="120" />
 <h1>BiasCheck</h1>
 
 <p class="subtitle">Search news topics and analyse media bias</p>
@@ -443,12 +443,9 @@ document.querySelectorAll('#framing-chart-wrap .chart-point').forEach(el => {
 document.getElementById("group-summary").style.display = 'block';
 document.getElementById("group-summary").innerHTML = `
 
-<p>
-<strong>View(s):</strong> ${data.group_summary.view }
-</p>
 
 <p>
-<strong>Detail:</strong> ${data.group_summary.detail}
+<strong>Verdict:</strong> ${data.group_summary.verdict}
 </p>
 <p>
 <strong>Summary:</strong> ${data.group_summary.summary}
