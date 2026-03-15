@@ -12,7 +12,7 @@ import asyncio
 load_dotenv()
 
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "phi3:mini")
 
 
 # ----------------------------
