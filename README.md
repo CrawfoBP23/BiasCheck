@@ -13,7 +13,12 @@
 
 > *In 2021, a WhatsApp message told 3 million people that vaccines contained a microchip — before any fact-check could reach them. It came too late. The belief was already alive. BiasCheck is about reversing that.*
 
-BiasCheck is a real-time news bias and misinformation analyzer. Paste a claim, drop a URL, or search a topic — and get an instant breakdown of political bias, emotional language, and unverified claims. **The user decides the views themselves.**
+BiasCheck analyses any news article or claim in the present. First, paste a headline or search a topic and within seconds you see:
+- where it sits on the political spectrum,
+- how a news outlet frames the story across persuasion and evidence,
+- any emotional language signals detected
+- what claims it makes,
+- and a plain-English verdict on what the bias looks like and why.
 
 ---
 
