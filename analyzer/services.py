@@ -11,6 +11,7 @@ load_dotenv()
 
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 
+# reuse ollama client
 ollama_client = ollama.Client()
 
 
@@ -30,7 +31,8 @@ Estimate what percentage of the article appears biased.
 Return exactly in this format:
 
 BIAS_PERCENT: <number 0-100>
-EXPLANATION: <short explanation of why the article is biased or not>
+INDICATORS: <comma separated bias indicators such as loaded language, missing context, framing, emotional wording>
+SUMMARY: <short explanation of why the article received this rating>
 """
 
     try:
@@ -49,32 +51,38 @@ EXPLANATION: <short explanation of why the article is biased or not>
 
         parsed = {
             "percent": 0,
-            "explanation": "Bias analysis unavailable."
+            "indicators": [],
+            "summary": "Bias analysis unavailable."
         }
 
     return {**article, "bias": parsed}
 
 
 # ----------------------------
-# PARSE RESPONSE
+# PARSE LLM RESPONSE
 # ----------------------------
 def parse_response(text):
 
     result = {
         "percent": 0,
-        "explanation": ""
+        "indicators": [],
+        "summary": ""
     }
 
     for line in text.splitlines():
 
-        if "BIAS_PERCENT" in line:
+        if line.startswith("BIAS_PERCENT"):
             try:
                 result["percent"] = float(line.split(":")[1].strip())
             except:
                 pass
 
-        elif "EXPLANATION" in line:
-            result["explanation"] = line.split(":",1)[1].strip()
+        elif line.startswith("INDICATORS"):
+            raw = line.replace("INDICATORS:", "").strip()
+            result["indicators"] = [i.strip() for i in raw.split(",") if i.strip()]
+
+        elif line.startswith("SUMMARY"):
+            result["summary"] = line.replace("SUMMARY:", "").strip()
 
     return result
 
@@ -91,7 +99,6 @@ def get_google_news(topic):
     feed = feedparser.parse(url)
 
     articles = []
-
     seen = set()
 
     for entry in feed.entries:

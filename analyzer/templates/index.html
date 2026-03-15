@@ -94,7 +94,7 @@ margin-bottom:10px;
 
 .bias-box{
 margin-top:12px;
-padding:10px;
+padding:12px;
 background:#f3f4f6;
 border-radius:10px;
 }
@@ -111,6 +111,12 @@ margin-top:6px;
 height:100%;
 background:#ef4444;
 transition:width .5s ease;
+}
+
+.bias-indicators{
+font-size:13px;
+color:#555;
+margin-top:8px;
 }
 
 .loading{
@@ -234,7 +240,7 @@ document.getElementById("results").innerHTML = html
 
 
 
-// run bias analysis after results render
+// run bias analysis
 
 articles.forEach(async (article,i)=>{
 
@@ -250,17 +256,25 @@ const bias = await response.json()
 
 const percent = bias.percent ?? 0
 
+const indicators = (bias.indicators || []).join(", ")
+
 document.getElementById(`bias-${i}`).innerHTML = `
+
 <strong>Bias Level:</strong> ${percent.toFixed(0)}%
 
 <div class="bias-bar">
 <div class="bias-fill" style="width:${percent}%"></div>
 </div>
 
-<p style="margin-top:10px">
+<div class="bias-indicators">
+<b>Indicators:</b> ${indicators || "None detected"}
+</div>
+
+<p style="margin-top:8px">
 <b>Why this rating:</b><br>
-${bias.explanation ?? "No explanation available."}
+${bias.summary ?? "No explanation available."}
 </p>
+
 `
 
 }catch{
