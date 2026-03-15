@@ -21,6 +21,7 @@ GROQ_MAX_CONCURRENT = 3
 
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL","phi3:mini")
+GROQ_MODEL = "openai/gpt-oss-20b"
 
 
 # ----------------------------
@@ -93,7 +94,7 @@ SUMMARY: <short explanation>
         for attempt in range(GROQ_MAX_RETRIES):
             try:
                 response = await client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
+                    model=GROQ_MODEL,
                     messages=[{"role": "user", "content": prompt}]
                 )
                 parsed = parse_response(response.choices[0].message.content)
@@ -256,7 +257,7 @@ SUMMARY: <short summary of those findings and conclude the user query wether the
     for attempt in range(GROQ_MAX_RETRIES):
         try:
             response = Groq(api_key=os.getenv("GROQ_API_KEY")).chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model=GROQ_MODEL,
                 messages=[{"role": "user", "content": prompt}]
             )
             return parse_response_group(response.choices[0].message.content)
