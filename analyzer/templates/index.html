@@ -139,6 +139,60 @@ border-radius:10px;
 box-shadow:0px 3px 8px rgba(0,0,0,0.08);
 }
 
+.framing-chart-wrap{
+display: none;
+background:white;
+padding:20px;
+margin:0px 10px 20px 10px;
+border-radius:10px;
+box-shadow:0px 3px 8px rgba(0,0,0,0.08);
+}
+
+.framing-chart-wrap h3{
+margin-top:0;
+margin-bottom:12px;
+}
+
+.framing-chart-wrap svg{
+display: block;
+margin: 0 auto;
+}
+
+.framing-chart-wrap .chart-point{
+cursor: pointer;
+stroke:#333;
+stroke-width: 1px;
+transition: r 0.15s ease;
+}
+
+.framing-chart-wrap .chart-point:hover{
+stroke-width: 2px;
+}
+
+.framing-chart-tooltip{
+position: fixed;
+display: none;
+max-width: 280px;
+padding: 10px 12px;
+background: #1a1a1a;
+color: #fff;
+font-size: 13px;
+border-radius: 8px;
+box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+z-index: 1000;
+pointer-events: none;
+}
+
+.framing-chart-tooltip .tooltip-source{
+font-weight: 600;
+margin-bottom: 4px;
+color: #c9d1d9;
+}
+
+.framing-chart-tooltip .tooltip-framing{
+color: #e6edf3;
+}
+
 </style>
 </head>
 
@@ -158,6 +212,9 @@ box-shadow:0px 3px 8px rgba(0,0,0,0.08);
 <button onclick="searchNews()">Search</button>
 
 </div>
+
+<div id="framing-chart-wrap" class="framing-chart-wrap"></div>
+<div id="framing-chart-tooltip" class="framing-chart-tooltip"></div>
 
 <div id="results" class="results"></div>
 
@@ -184,6 +241,7 @@ document.getElementById("results").innerHTML =
 </div>`
 
 document.getElementById("group-summary").style.display = 'none';
+document.getElementById("framing-chart-wrap").style.display = 'none';
 
 const response = await fetch(`/api/search/?topic=${topic}`)
 
@@ -260,6 +318,94 @@ ${bias.summary || ""}
 document.getElementById("results").style.display = 'block';
 document.getElementById("results").innerHTML = resultsHTML
 
+// 2-axis framing chart: X = Speculative ← → Evidence based, Y = Neutral ← → Persuasive
+const chartW = 560
+const chartH = 320
+const margin = { top: 36, right: 36, bottom: 52, left: 56 }
+const innerW = chartW - margin.left - margin.right
+const innerH = chartH - margin.top - margin.bottom
+const xScale = v => margin.left + (v / 10) * innerW
+const yScale = v => margin.top + (1 - v / 10) * innerH  // 0 = bottom (Neutral), 10 = top (Persuasive)
+
+let circlesHTML = ''
+const colors = ['#2563eb','#dc2626','#059669','#7c3aed','#d97706','#0891b2','#be185d','#65a30d','#4f46e5','#0d9488']
+// #region agent log
+fetch('http://127.0.0.1:7721/ingest/3c023d2f-d677-471e-851b-b22e72103992',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7140ec'},body:JSON.stringify({sessionId:'7140ec',location:'index.html:chart',message:'articles for chart',data:{count:data.articles.length,sources:data.articles.map(a=>a.source)},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+// #endregion
+// Compute positions; group by (evidence, persuasive) to jitter only overlapping points
+const positions = data.articles.map((article, i) => {
+    const bias = article.bias || {}
+    const evidence = Math.max(0, Math.min(10, bias.evidence != null ? bias.evidence : 5))
+    const persuasive = Math.max(0, Math.min(10, bias.persuasive != null ? bias.persuasive : 5))
+    return { evidence, persuasive, i }
+})
+const key = (e, p) => e.toFixed(2) + ',' + p.toFixed(2)
+const groups = {}
+positions.forEach(p => {
+    const k = key(p.evidence, p.persuasive)
+    if (!groups[k]) groups[k] = []
+    groups[k].push(p)
+})
+const jitterRadius = 10
+positions.forEach(p => {
+    const g = groups[key(p.evidence, p.persuasive)]
+    const idx = g.findIndex(x => x.i === p.i)
+    const n = g.length
+    let dx = 0, dy = 0
+    if (n > 1) {
+        const angle = (idx / n) * 2 * Math.PI
+        dx = Math.cos(angle) * jitterRadius
+        dy = Math.sin(angle) * jitterRadius
+    }
+    p.cx = xScale(p.evidence) + dx
+    p.cy = yScale(p.persuasive) + dy
+})
+const circleCoords = []
+data.articles.forEach((article, i) => {
+    const p = positions[i]
+    const source = (article.source || 'Unknown').replace(/"/g, '&quot;').replace(/&/g, '&amp;')
+    const framing = (article.key_framing || '—').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/&/g, '&amp;')
+    const color = colors[i % colors.length]
+    circlesHTML += `<circle class="chart-point" data-source="${source}" data-framing="${framing}" cx="${p.cx}" cy="${p.cy}" r="8" fill="${color}"/>`
+    circleCoords.push({ source: article.source, cx: p.cx, cy: p.cy })
+})
+// #region agent log
+const circleCount = (circlesHTML.match(/<circle/g) || []).length
+fetch('http://127.0.0.1:7721/ingest/3c023d2f-d677-471e-851b-b22e72103992',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'7140ec'},body:JSON.stringify({sessionId:'7140ec',location:'index.html:chart',message:'circles built',data:{circleCount,circleCoords,hasAmpersand:data.articles.some(a=>(a.source||'').indexOf('&')>=0 || (a.key_framing||'').indexOf('&')>=0)},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
+// #endregion
+const centerX = margin.left + innerW / 2
+const centerY = margin.top + innerH / 2
+const svgContent = `
+  <h3>Story framing</h3>
+  <svg width="${chartW}" height="${chartH}" id="framing-svg">
+    <line x1="${centerX}" y1="${margin.top}" x2="${centerX}" y2="${margin.top + innerH}" stroke="#333" stroke-width="1"/>
+    <line x1="${margin.left}" y1="${centerY}" x2="${margin.left + innerW}" y2="${centerY}" stroke="#333" stroke-width="1"/>
+    <text x="${centerX}" y="${margin.top + 12}" text-anchor="middle" font-size="11" fill="#444">Persuasive</text>
+    <text x="${centerX}" y="${margin.top + innerH - 4}" text-anchor="middle" font-size="11" fill="#444">Neutral</text>
+    <text x="${margin.left}" y="${centerY + 4}" text-anchor="start" dominant-baseline="middle" font-size="11" fill="#444">Speculative</text>
+    <text x="${margin.left + innerW}" y="${centerY + 4}" text-anchor="end" dominant-baseline="middle" font-size="11" fill="#444">Evidence based</text>
+    ${circlesHTML}
+  </svg>
+`
+document.getElementById("framing-chart-wrap").style.display = 'block'
+document.getElementById("framing-chart-wrap").innerHTML = svgContent
+
+const tooltip = document.getElementById("framing-chart-tooltip")
+document.querySelectorAll('#framing-chart-wrap .chart-point').forEach(el => {
+    el.addEventListener('mouseenter', function(e) {
+        tooltip.innerHTML = `<div class="tooltip-source">${this.getAttribute('data-source')}</div><div class="tooltip-framing">${this.getAttribute('data-framing')}</div>`
+        tooltip.style.display = 'block'
+        tooltip.style.left = (e.pageX + 14) + 'px'
+        tooltip.style.top = (e.pageY + 8) + 'px'
+    })
+    el.addEventListener('mousemove', function(e) {
+        tooltip.style.left = (e.pageX + 14) + 'px'
+        tooltip.style.top = (e.pageY + 8) + 'px'
+    })
+    el.addEventListener('mouseleave', function() {
+        tooltip.style.display = 'none'
+    })
+})
 
 document.getElementById("group-summary").style.display = 'block';
 document.getElementById("group-summary").innerHTML = `

@@ -20,6 +20,15 @@ def search_news(request):
     articles = results[0]
     group_summary = results[1]
 
+    # #region agent log
+    try:
+        with open("/Users/georgetong/PycharmProjects/BiasCheck/.cursor/debug-7140ec.log", "a") as f:
+            import json
+            f.write(json.dumps({"sessionId": "7140ec", "location": "views.py:search_news", "message": "before JsonResponse", "data": {"len_articles": len(articles)}, "timestamp": time.time() * 1000, "hypothesisId": "C"}) + "\n")
+    except Exception:
+        pass
+    # #endregion
+
     elapsed = round(time.time() - start, 2)
 
     return JsonResponse({

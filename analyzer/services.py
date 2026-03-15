@@ -1,6 +1,7 @@
 import requests
 import os
 import feedparser
+import time
 from dotenv import load_dotenv
 from urllib.parse import quote
 from functools import lru_cache
@@ -12,6 +13,11 @@ import asyncio
 import datetime
 
 load_dotenv()
+
+# Rate limit: retry 429 with backoff; max concurrent article analyses
+GROQ_MAX_RETRIES = 4
+GROQ_RETRY_BASE_SEC = 8
+GROQ_MAX_CONCURRENT = 3
 
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL","phi3:mini")
@@ -37,50 +43,94 @@ def get_article_content(url: str) -> str:
 
 
 # ----------------------------
+# RATE LIMIT HELPERS
+# ----------------------------
+def _is_rate_limit_error(e: Exception) -> bool:
+    code = getattr(e, "status_code", None) or getattr(getattr(e, "response", None), "status_code", None)
+    if code == 429:
+        return True
+    msg = str(e).lower()
+    return "429" in msg or "rate limit" in msg
+
+
+def _retry_after(e: Exception) -> float:
+    try:
+        r = getattr(e, "response", None)
+        if r is not None:
+            after = r.headers.get("retry-after")
+            if after:
+                return float(after)
+    except Exception:
+        pass
+    return GROQ_RETRY_BASE_SEC
+
+
+# ----------------------------
 # OLLAMA BIAS ANALYSIS
 # ----------------------------
-async def analyze_bias(article: dict) -> dict:
+async def _analyze_bias_one(article: dict, semaphore: asyncio.Semaphore, client: AsyncGroq) -> dict:
+    async with semaphore:
+        content = get_article_content(article["url"]) if article["url"] else ""
 
-    content = get_article_content(article["url"]) if article["url"] else ""
-
-    print(f"[✓] get article content of '{article['url']}'... finished at {datetime.datetime.now().time().strftime('%H:%M:%S')}")
-    prompt = f"""
+        print(f"[✓] get article content of '{article['url']}'... finished at {datetime.datetime.now().time().strftime('%H:%M:%S')}")
+        prompt = f"""
 Analyze the following news article for political or emotional bias.
 
 Title: {article['title']}
 Content: {content[:2000]}
 
-Return exactly:
+Return exactly (use the FULL 0-10 range for EVIDENCE and PERSUASIVE; differentiate clearly between articles):
 
 SCORE: <number between -10 and +10, use the FULL range aggressively — obvious tabloid or opinionated pieces should score 8-10, balanced reporting should score around 0, truly neutral wire reports score -10>
 LABEL: <Far Left | Left | Center-Left | Center | Center-Right | Right | Far Right>
+EVIDENCE: <single number 0-10 only; 0=purely speculative/opinion, 10=strongly evidence-based and factual; use decimals if needed e.g. 3 or 7.5>
+PERSUASIVE: <single number 0-10 only; 0=neutral/balanced, 10=highly persuasive/advocacy; use decimals if needed>
 CLAIMS: <2-5 claims stated>
 INDICATORS: <comma separated list>
 SUMMARY: <short explanation>
 """
-
-    try:
-        client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
-
-        response = await client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        parsed = parse_response(response.choices[0].message.content)
-
-    except Exception as e:
-        print(f"Ollama error: {e}")
-
+        last_error = None
+        for attempt in range(GROQ_MAX_RETRIES):
+            try:
+                response = await client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                parsed = parse_response(response.choices[0].message.content)
+                return {**article, "bias": parsed}
+            except Exception as e:
+                last_error = e
+                if _is_rate_limit_error(e) and attempt < GROQ_MAX_RETRIES - 1:
+                    wait = _retry_after(e) * (2 ** attempt)
+                    print(f"Rate limit hit, retrying in {wait:.0f}s (attempt {attempt + 1}/{GROQ_MAX_RETRIES})...")
+                    await asyncio.sleep(w)
+                else:
+                    break
+        print(f"Ollama error: {last_error}")
         parsed = {
             "score": 0,
             "label": "Unavailable",
+            "evidence": 5,
+            "persuasive": 5,
             "claims": [],
             "indicators": [],
             "summary": "Bias analysis unavailable"
         }
+        return {**article, "bias": parsed}
 
-    return {**article, "bias": parsed}
+
+async def analyze_bias(article: dict) -> dict:
+    client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
+    try:
+        return await _analyze_bias_one(article, asyncio.Semaphore(1), client)
+    finally:
+        for attr in ("_client", "_http_client", "client"):
+            if hasattr(client, attr) and hasattr(getattr(client, attr), "aclose"):
+                try:
+                    await getattr(client, attr).aclose()
+                except Exception:
+                    pass
+                break
 
 
 def parse_response(text: str) -> dict:
@@ -88,6 +138,8 @@ def parse_response(text: str) -> dict:
     result = {
         "score": 0,
         "label": "Center",
+        "evidence": 5,
+        "persuasive": 5,
         "claims":[],
         "indicators": [],
         "summary": ""
@@ -103,6 +155,24 @@ def parse_response(text: str) -> dict:
 
         elif line.startswith("LABEL:"):
             result["label"] = line.replace("LABEL:", "").strip()
+
+        elif line.strip().upper().startswith("EVIDENCE:"):
+            try:
+                raw = line.split(":", 1)[-1].strip()
+                num = "".join(c for c in (raw.split()[0] if raw.split() else "") if c in "0123456789.")
+                if num:
+                    result["evidence"] = max(0, min(10, float(num)))
+            except Exception:
+                pass
+
+        elif line.strip().upper().startswith("PERSUASIVE:"):
+            try:
+                raw = line.split(":", 1)[-1].strip()
+                num = "".join(c for c in (raw.split()[0] if raw.split() else "") if c in "0123456789.")
+                if num:
+                    result["persuasive"] = max(0, min(10, float(num)))
+            except Exception:
+                pass
 
         elif line.startswith("CLAIMS:"):
             raw = line.replace("CLAIMS:", "").strip()
@@ -142,10 +212,25 @@ def parse_response_group(text: str) -> dict:
     return result
 
 def analyze_all_articles(articles: list) -> list:
+    semaphore = asyncio.Semaphore(GROQ_MAX_CONCURRENT)
 
     async def run():
-        tasks = [analyze_bias(article) for article in articles]
-        return await asyncio.gather(*tasks)
+        client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
+        try:
+            tasks = [_analyze_bias_one(article, semaphore, client) for article in articles]
+            return await asyncio.gather(*tasks)
+        finally:
+            # Close the underlying httpx client while the event loop is still running
+            # to avoid "Event loop is closed" when asyncio.run() tears down the loop
+            for attr in ("_client", "_http_client", "client"):
+                if hasattr(client, attr):
+                    c = getattr(client, attr)
+                    if hasattr(c, "aclose"):
+                        try:
+                            await c.aclose()
+                        except Exception:
+                            pass
+                        break
 
     return asyncio.run(run())
 
@@ -167,23 +252,93 @@ DETAIL: <list the views in one sentence each>
 SUMMARY: <short summary of those findings and conclude the user query wether the question is bias or not>
 """
 
-    try:
-        response = Groq(api_key=os.getenv("GROQ_API_KEY")).chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "user", "content": prompt}]
+    last_error = None
+    for attempt in range(GROQ_MAX_RETRIES):
+        try:
+            response = Groq(api_key=os.getenv("GROQ_API_KEY")).chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return parse_response_group(response.choices[0].message.content)
+        except Exception as e:
+            last_error = e
+            if _is_rate_limit_error(e) and attempt < GROQ_MAX_RETRIES - 1:
+                wait = _retry_after(e) * (2 ** attempt)
+                print(f"Rate limit (group summary), retrying in {wait:.0f}s...")
+                time.sleep(w)
+            else:
+                break
+    print(f"Ollama error: {last_error}")
+    return {
+        "score": 0,
+        "label": "Unavailable",
+        "indicators": [],
+        "summary": "Summary bias analysis unavailable"
+    }
+
+
+def get_comparative_framings(articles: list) -> list:
+    """
+    For each article, get a short (3–6 word) framing phrase that contrasts with the others
+    (e.g. safety focus vs conflict angle vs sport impact).
+    """
+    if not articles:
+        return []
+    articles_desc = []
+    for i, a in enumerate(articles):
+        summary = (a.get("bias") or {}).get("summary", "") or ""
+        articles_desc.append(
+            f"[{i + 1}] Source: {a.get('source', 'Unknown')}\nTitle: {a.get('title', '')}\nSummary: {summary}"
         )
+    prompt = f"""You are comparing how different news sources frame the same story.
 
-        return parse_response_group(response.choices[0].message.content)
+Articles (in order):
+---
+{chr(10).join(articles_desc)}
+---
 
-    except Exception as e:
-        print(f"Ollama error: {e}")
+For each article, give ONE short framing phrase (3–6 words) that captures how THIS article frames the story compared to the others. Use contrasting angles, e.g.:
+- safety/risk focus
+- conflict or regional tension
+- tragedy or human cost
+- sport/event impact
+- leadership or institutional decision
+- blame or responsibility
 
-        return {
-            "score": 0,
-            "label": "Unavailable",
-            "indicators": [],
-            "summary": "Summary bias analysis unavailable"
-        }
+Return exactly one line per article, in the same order (article 1, then 2, ...). Each line must start with FRAMING:
+FRAMING: <phrase for article 1>
+FRAMING: <phrase for article 2>
+...
+"""
+
+    last_error = None
+    for attempt in range(GROQ_MAX_RETRIES):
+        try:
+            response = Groq(api_key=os.getenv("GROQ_API_KEY")).chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            text = response.choices[0].message.content or ""
+            framings = []
+            for line in text.strip().splitlines():
+                line = line.strip()
+                if line.upper().startswith("FRAMING:"):
+                    phrase = line.split(":", 1)[-1].strip()
+                    if phrase:
+                        framings.append(phrase)
+            while len(framings) < len(articles):
+                framings.append("—")
+            return framings[: len(articles)]
+        except Exception as e:
+            last_error = e
+            if _is_rate_limit_error(e) and attempt < GROQ_MAX_RETRIES - 1:
+                wait = _retry_after(e) * (2 ** attempt)
+                print(f"Rate limit (framings), retrying in {wait:.0f}s...")
+                time.sleep(wait)
+            else:
+                break
+    print(f"Comparative framings error: {last_error}")
+    return [""] * len(articles)
 
 
 # ----------------------------
@@ -323,11 +478,24 @@ def get_newsapi_news(topic):
 # ----------------------------
 # COMBINE + CACHE
 # ----------------------------
+# #region agent log
+def _debug_log(data: dict):
+    import json
+    try:
+        with open("/Users/georgetong/PycharmProjects/BiasCheck/.cursor/debug-7140ec.log", "a") as f:
+            f.write(json.dumps({"sessionId": "7140ec", **data, "timestamp": datetime.datetime.now().timestamp() * 1000}) + "\n")
+    except Exception:
+        pass
+# #endregion
+
 @lru_cache(maxsize=50)
 def get_related_news(topic):
 
     google_articles = get_google_news(topic)
     api_articles = get_newsapi_news(topic)
+    # #region agent log
+    _debug_log({"location": "services.py:get_related_news", "message": "after feeds", "data": {"len_google": len(google_articles), "len_api": len(api_articles), "hypothesisId": "A"}})
+    # #endregion
 
     combined = google_articles + api_articles
 
@@ -339,13 +507,26 @@ def get_related_news(topic):
     unique_articles = []
 
     for article in combined:
+        # Dedupe by title + source so same headline from different outlets each get plotted
+        key = (article["title"].lower(), (article.get("source") or "").strip())
 
-        title = article["title"].lower()
-
-        if title not in seen:
+        if key not in seen:
             unique_articles.append(article)
-            seen.add(title)
-    
+            seen.add(key)
+
+    # #region agent log
+    _debug_log({"location": "services.py:get_related_news", "message": "after dedup", "data": {"len_combined": len(combined), "len_unique": len(unique_articles), "sources": [a.get("source") for a in unique_articles], "hypothesisId": "B"}})
+    # #endregion
+
+    # Short comparative framing phrases (e.g. safety focus vs conflict angle)
+    framings = get_comparative_framings(unique_articles)
+    for i, article in enumerate(unique_articles):
+        article["key_framing"] = framings[i] if i < len(framings) else "—"
+
+    # #region agent log
+    _debug_log({"location": "services.py:get_related_news", "message": "bias scores for chart", "data": {"scores": [{"source": a.get("source"), "evidence": (a.get("bias") or {}).get("evidence"), "persuasive": (a.get("bias") or {}).get("persuasive")} for a in unique_articles], "hypothesisId": "F"}})
+    # #endregion
+
     results = []
     results.append(unique_articles)
     results.append(group_summary)

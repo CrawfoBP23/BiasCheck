@@ -10,3 +10,4 @@ trafilatura
 googlenewsdecoder
 ollama
 asyncio
+groq
