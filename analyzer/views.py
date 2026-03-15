@@ -1,6 +1,6 @@
 from django.http import JsonResponse
 from django.shortcuts import render
-from .services import get_related_news
+from .services import get_related_news, analyze_bias
 
 
 def home(request):
@@ -12,19 +12,25 @@ def search_news(request):
     topic = request.GET.get("topic")
 
     if not topic:
-        return JsonResponse({"articles": []})
+        return JsonResponse([])
 
-    results = get_related_news(topic)
-    articles = results[0]
-    group_summary = results[1]
+    articles = get_related_news(topic)
 
-    return JsonResponse({
-        "articles": articles,
-        "group_summary": group_summary
-    })
+    return JsonResponse(articles, safe=False)
 
 
 def analyze_article(request):
-    return JsonResponse({
-        "message": "Article analysis not implemented yet"
-    })
+
+    title = request.GET.get("title")
+    summary = request.GET.get("summary")
+    url = request.GET.get("url")
+
+    article = {
+        "title": title,
+        "summary": summary,
+        "url": url
+    }
+
+    result = analyze_bias(article)
+
+    return JsonResponse(result["bias"])
