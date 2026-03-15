@@ -6,13 +6,15 @@ from urllib.parse import quote
 from functools import lru_cache
 import trafilatura
 from googlenewsdecoder import new_decoderv1
-import ollama
+# import ollama
+from groq import AsyncGroq, Groq
 import asyncio
+import datetime
 
 load_dotenv()
 
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "phi3:mini")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL","phi3:mini")
 
 
 # ----------------------------
@@ -41,6 +43,7 @@ async def analyze_bias(article: dict) -> dict:
 
     content = get_article_content(article["url"]) if article["url"] else ""
 
+    print(f"[✓] get article content of '{article['url']}'... finished at {datetime.datetime.now().time().strftime('%H:%M:%S')}")
     prompt = f"""
 Analyze the following news article for political or emotional bias.
 
@@ -57,14 +60,14 @@ SUMMARY: <short explanation>
 """
 
     try:
-        client = ollama.AsyncClient()
+        client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
 
-        response = await client.chat(
-            model=OLLAMA_MODEL,
+        response = await client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}]
         )
 
-        parsed = parse_response(response["message"]["content"])
+        parsed = parse_response(response.choices[0].message.content)
 
     except Exception as e:
         print(f"Ollama error: {e}")
@@ -115,6 +118,29 @@ def parse_response(text: str) -> dict:
     return result
 
 
+def parse_response_group(text: str) -> dict:
+
+    result = {
+        "View(s)": 0,
+        "Detail": "",
+        "summary": ""
+    }
+
+    for line in text.strip().splitlines():
+
+        if line.startswith("VIEW:"):
+            try:
+                result["view"] = float(line.replace("VIEW:", "").strip())
+            except:
+                pass
+        elif line.startswith("DETAIL:"):
+            result["detail"] = line.replace("DETAIL:", "").strip()
+
+        elif line.startswith("SUMMARY:"):
+            result["summary"] = line.replace("SUMMARY:", "").strip()
+
+    return result
+
 def analyze_all_articles(articles: list) -> list:
 
     async def run():
@@ -136,18 +162,18 @@ All articles to be analyzed:
 
 Return exactly:
 
-How many groups of views: <between 1-4>
-View: <list the views in one sentence each>
+VIEW: <how many groups of views between 1-4>
+DETAIL: <list the views in one sentence each>
 SUMMARY: <short summary of those findings and conclude the user query wether the question is bias or not>
 """
 
     try:
-        response = ollama.chat(
-            model=OLLAMA_MODEL,
+        response = Groq(api_key=os.getenv("GROQ_API_KEY")).chat.completions.create(
+            model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}]
         )
 
-        return response["message"]["content"]
+        return parse_response_group(response.choices[0].message.content)
 
     except Exception as e:
         print(f"Ollama error: {e}")
@@ -237,7 +263,9 @@ def get_google_news(topic):
         })
 
     # run bias analysis
+    print(f"Running analysis for google news... starting at ", datetime.datetime.now().time().strftime("%H:%M:%S"))
     articles = analyze_all_articles(articles)
+    print(f"[✓] Running analysis for google news... finished at ", datetime.datetime.now().time().strftime("%H:%M:%S"))
 
     return articles
 
@@ -283,8 +311,11 @@ def get_newsapi_news(topic):
 
 
     # run bias analysis in newsapi too
+
+    print(f"Running analysis for newsapi... finished at ", datetime.datetime.now().time().strftime("%H:%M:%S"))
     articles = analyze_all_articles(articles)
 
+    print(f"[✓] Running analysis for newsapi... finished at ", datetime.datetime.now().time().strftime("%H:%M:%S"))
     return articles
 
 
