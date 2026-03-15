@@ -89,7 +89,7 @@ User inputs a topic or claim
 ### Installation
 
 ```bash
-git clone https://github.com/yourusername/biascheck.git
+git clone https://github.com/yourusername/biascheck.git](https://github.com/CrawfoBP23/BiasCheck.git
 cd biascheck
 pip install -r requirements.txt
 cp .env.example .env
