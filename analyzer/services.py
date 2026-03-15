@@ -80,8 +80,11 @@ Analyze the following news article for political or emotional bias.
 Title: {article['title']}
 Content: {content[:2000]}
 
+First decide: was there substantive article content to analyze? Answer no if the page had only a paywall, "enable JavaScript", "disable ad blocker", login prompt, or too little real reporting to assess bias.
+
 Return exactly (use the FULL 0-10 range for EVIDENCE and PERSUASIVE; differentiate clearly between articles):
 
+ANALYZABLE: <yes or no — no if content was not substantive or was only placeholder/instructions>
 SCORE: <number between -10 and +10, use the FULL range aggressively — obvious tabloid or opinionated pieces should score 8-10, balanced reporting should score around 0, truly neutral wire reports score -10>
 LABEL: <Far Left | Left | Center-Left | Center | Center-Right | Right | Far Right>
 EVIDENCE: <single number 0-10 only; 0=purely speculative/opinion, 10=strongly evidence-based and factual; use decimals if needed e.g. 3 or 7.5>
@@ -110,6 +113,7 @@ SUMMARY: <short explanation>
                     break
         print(f"Ollama error: {last_error}")
         parsed = {
+            "analyzable": True,
             "score": 0,
             "label": "Unavailable",
             "evidence": 5,
@@ -139,6 +143,7 @@ async def analyze_bias(article: dict) -> dict:
 def parse_response(text: str) -> dict:
 
     result = {
+        "analyzable": True,
         "score": 0,
         "label": "Center",
         "evidence": 5,
@@ -150,8 +155,11 @@ def parse_response(text: str) -> dict:
     }
 
     for line in text.strip().splitlines():
+        if line.strip().upper().startswith("ANALYZABLE:"):
+            val = line.split(":", 1)[-1].strip().upper()
+            result["analyzable"] = val in ("YES", "Y", "1", "TRUE")
 
-        if line.startswith("SCORE:"):
+        elif line.startswith("SCORE:"):
             try:
                 result["score"] = float(line.replace("SCORE:", "").strip())
             except:
@@ -507,8 +515,11 @@ def get_related_news(topic):
 
     combined = google_articles + api_articles
 
+    # Drop articles the LLM marked as unanalyzable (paywall, JS-only, no content, etc.)
+    combined = [a for a in combined if (a.get("bias") or {}).get("analyzable", True)]
+
     # do summary bias analysis
-    group_summary = group_summary_bias(combined,topic=topic)
+    group_summary = group_summary_bias(combined, topic=topic)
     #
 
     seen = set()
