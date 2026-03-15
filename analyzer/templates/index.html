@@ -189,7 +189,7 @@ const response = await fetch(`/api/search/?topic=${topic}`)
 
 const data = await response.json()
 
-let resultsHTML = `<p style='text-align:center'>There are ${data.articles.length} articles found</p>`
+let resultsHTML = `<p style='text-align:center'>There are ${data.articles.length} articles found in ${data.elapsed}s</p>`
 
 data.articles.forEach(article => {
 console.log(article.bias)
