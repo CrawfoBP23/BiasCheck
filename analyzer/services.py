@@ -532,11 +532,23 @@ def get_related_news(topic):
 
     combined = google_articles + api_articles
 
-    # Drop articles the LLM marked as unanalyzable (paywall, JS-only, no content, etc.)
-    combined = [a for a in combined if (a.get("bias") or {}).get("analyzable", True)]
-
-    # Verdict from quantitative bias scores (no extra LLM call)
-    group_summary = compute_verdict_from_scores(combined,topic=topic)
+    # Keep all articles for the chart (don't drop unanalyzable); in production more fetches
+    # fail so dropping them caused fewer points. Unanalyzable get default bias for display.
+    for a in combined:
+        b = a.get("bias") or {}
+        if not b.get("analyzable", True):
+            b.setdefault("score", 0)
+            b.setdefault("label", "Unavailable")
+            b.setdefault("evidence", 5)
+            b.setdefault("persuasive", 5)
+            b.setdefault("summary", "Could not fetch content.")
+            b.setdefault("reasons", [])
+            b.setdefault("claims", [])
+            b.setdefault("indicators", [])
+            a["bias"] = b
+    # Verdict from quantitative bias scores (analyzable only, so verdict isn't skewed by Unavailable)
+    analyzable = [a for a in combined if (a.get("bias") or {}).get("analyzable", True)]
+    group_summary = compute_verdict_from_scores(analyzable, topic=topic)
 
     seen = set()
     unique_articles = []
