@@ -88,7 +88,7 @@ Return exactly (use the FULL 0-10 range for EVIDENCE and PERSUASIVE; differentia
 
 ANALYZABLE: <yes or no — no if content was not substantive or was only placeholder/instructions>
 SCORE: <number 0 to 10 only: 0 = no bias (factual, balanced, neutral wire style), 5 = moderate slant, 10 = heavily biased/opinion piece — use the full range; give 0 when appropriate>
-LABEL: <Far Left | Left | Center-Left | Center | Center-Right | Right | Far Right>
+LABEL: <Far Left | Left | Center-Left | Center | Center-Right | Right | Far Right | No Political Bias>
 EVIDENCE: <single number 0-10 only; 0=purely speculative/opinion, 10=strongly evidence-based and factual; use decimals if needed e.g. 3 or 7.5>
 PERSUASIVE: <single number 0-10 only; 0=neutral/balanced, 10=highly persuasive/advocacy; use decimals if needed>
 CLAIMS: <2-5 claims stated>
