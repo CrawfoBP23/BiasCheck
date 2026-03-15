@@ -7,6 +7,8 @@
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat)
 ![Status](https://img.shields.io/badge/Status-Hackathon%20Build-orange?style=flat)
 ![Built at](https://img.shields.io/badge/Built%20at-BirmingHack%202026-purple?style=flat)
+
+
 <img src="https://github.com/CrawfoBP23/BiasCheck/blob/c237359373aa4e01909753ecaf2f95de612814cb/analyzer/static/biascheck-white.png" width="300">
 
 > *In 2021, a WhatsApp message told 3 million people that vaccines contained a microchip — before any fact-check could reach them. It came too late. The belief was already alive. BiasCheck is about reversing that.*
