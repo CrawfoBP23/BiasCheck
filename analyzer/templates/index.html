@@ -217,12 +217,12 @@ color: #e6edf3;
 
 </div>
 
+<div id="group-summary" class="group-summary"></div>
 <div id="framing-chart-wrap" class="framing-chart-wrap"></div>
 <div id="framing-chart-tooltip" class="framing-chart-tooltip"></div>
 
 <div id="results" class="results"></div>
 
-<div id="group-summary" class="group-summary"></div>
 
 </div>
 
@@ -377,7 +377,7 @@ data.articles.forEach((article, i) => {
     const source = (article.source || 'Unknown').replace(/"/g, '&quot;').replace(/&/g, '&amp;')
     const framing = (article.key_framing || '—').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/&/g, '&amp;')
     const color = colors[i % colors.length]
-    circlesHTML += `<circle class="chart-point" data-source="${source}" data-framing="${framing}" data-article-index="${i}" cx="${p.cx}" cy="${p.cy}" r="8" fill="${color}"/>`
+    circlesHTML += `<circle class="chart-point" data-source="${source}" data-framing="${framing}" data-article-index="${i}" cx="${p.cx}" cy="${p.cy}" r="5" fill="${color}"/>`
     circleCoords.push({ source: article.source, cx: p.cx, cy: p.cy })
 })
 // #region agent log
