@@ -274,7 +274,7 @@ def compute_verdict_from_scores(articles: list) -> dict:
     else:
         verdict = "high bias"
     n = len(articles)
-    summary = f"Based on {n} article{'s' if n != 1 else ''}. Average bias score: {avg:.1f} (scale 0 to 10). Verdict: {verdict}."
+    summary = f"<short summary of the user query based on findings or how likely the query is bias or very distorted>"
     return {"verdict": verdict, "summary": summary}
 
 
