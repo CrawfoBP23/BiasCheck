@@ -249,7 +249,7 @@ const data = await response.json()
 
 let resultsHTML = `<p style='text-align:center'>There are ${data.articles.length} articles found in ${data.elapsed}s</p>`
 
-data.articles.forEach(article => {
+data.articles.forEach((article, i) => {
 console.log(article.bias)
 const bias = article.bias || {}
 
@@ -272,7 +272,7 @@ const g = Math.round(255 * (1 - percent / 100))
 const color = `rgb(${r}, ${g}, 0)`
 resultsHTML += `
 
-<div class="article">
+<div class="article" id="article-${i}">
 
 <h3>${article.title}</h3>
 
@@ -366,7 +366,7 @@ data.articles.forEach((article, i) => {
     const source = (article.source || 'Unknown').replace(/"/g, '&quot;').replace(/&/g, '&amp;')
     const framing = (article.key_framing || '—').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/&/g, '&amp;')
     const color = colors[i % colors.length]
-    circlesHTML += `<circle class="chart-point" data-source="${source}" data-framing="${framing}" cx="${p.cx}" cy="${p.cy}" r="8" fill="${color}"/>`
+    circlesHTML += `<circle class="chart-point" data-source="${source}" data-framing="${framing}" data-article-index="${i}" cx="${p.cx}" cy="${p.cy}" r="8" fill="${color}"/>`
     circleCoords.push({ source: article.source, cx: p.cx, cy: p.cy })
 })
 // #region agent log
@@ -404,6 +404,11 @@ document.querySelectorAll('#framing-chart-wrap .chart-point').forEach(el => {
     })
     el.addEventListener('mouseleave', function() {
         tooltip.style.display = 'none'
+    })
+    el.addEventListener('click', function() {
+        const idx = this.getAttribute('data-article-index')
+        const target = document.getElementById('article-' + idx)
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
 })
 
