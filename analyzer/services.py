@@ -88,6 +88,7 @@ EVIDENCE: <single number 0-10 only; 0=purely speculative/opinion, 10=strongly ev
 PERSUASIVE: <single number 0-10 only; 0=neutral/balanced, 10=highly persuasive/advocacy; use decimals if needed>
 CLAIMS: <2-5 claims stated>
 INDICATORS: <comma separated list>
+REASONS: <2-4 short phrases explaining why this bias score, separated by | e.g. Emotional language detected | Selective focus on conflict | Missing opposing perspectives>
 SUMMARY: <short explanation>
 """
         last_error = None
@@ -115,6 +116,7 @@ SUMMARY: <short explanation>
             "persuasive": 5,
             "claims": [],
             "indicators": [],
+            "reasons": [],
             "summary": "Bias analysis unavailable"
         }
         return {**article, "bias": parsed}
@@ -143,6 +145,7 @@ def parse_response(text: str) -> dict:
         "persuasive": 5,
         "claims":[],
         "indicators": [],
+        "reasons": [],
         "summary": ""
     }
 
@@ -182,6 +185,10 @@ def parse_response(text: str) -> dict:
         elif line.startswith("INDICATORS:"):
             raw = line.replace("INDICATORS:", "").strip()
             result["indicators"] = [i.strip() for i in raw.split(",") if i.strip()]
+
+        elif line.strip().upper().startswith("REASONS:"):
+            raw = line.split(":", 1)[-1].strip()
+            result["reasons"] = [i.strip() for i in raw.split("|") if i.strip()]
 
         elif line.startswith("SUMMARY:"):
             result["summary"] = line.replace("SUMMARY:", "").strip()

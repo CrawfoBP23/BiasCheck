@@ -107,6 +107,10 @@ margin-top:6px;
 height:100%;
 }
 
+.bias-explanation{ margin-top:10px; }
+.bias-reasons{ list-style:none; margin:4px 0 0 0; padding-left:0; }
+.bias-reasons li{ margin-bottom:2px; }
+
 .loading{
 font-size:18px;
 color:#666;
@@ -293,6 +297,13 @@ ${article.summary || ""}
 <br/><strong>Bias Bar: </strong> ${biasbar_qualitative || "Unknown"}
 <div class="bias-bar">
 <div class="bias-fill" style="width:${percent}%; background:rgb(${Math.round(255*(percent/100))}, ${Math.round(255*(1-percent/100))}, 0)"></div>
+</div>
+
+<div class="bias-explanation">
+<strong>Reasons:</strong>
+<ul class="bias-reasons">
+${(bias.reasons || []).map(r => `<li>+ ${r.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</li>`).join('') || '<li>No reasons provided</li>'}
+</ul>
 </div>
 
 <p>
