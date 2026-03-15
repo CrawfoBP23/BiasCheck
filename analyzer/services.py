@@ -247,11 +247,8 @@ def analyze_all_articles(articles: list) -> list:
 
     return asyncio.run(run())
 
-def compute_verdict_from_scores(articles: list) -> dict:
-    """
-    Compute verdict and summary from per-article bias scores (no LLM).
-    Score range 0 (no bias) to 10 (heavily biased); we use the average score.
-    """
+def compute_verdict_from_scores(articles: list, topic: str) -> dict:
+
     if not articles:
         return {"verdict": "no bias", "summary": "No articles to analyze."}
     scores = []
@@ -273,9 +270,44 @@ def compute_verdict_from_scores(articles: list) -> dict:
         verdict = "moderate bias"
     else:
         verdict = "high bias"
-    n = len(articles)
-    summary = f"<short summary of the user query based on findings or how likely the query is bias or very distorted>"
-    return {"verdict": verdict, "summary": summary}
+
+    prompt = f"""
+Create groups of the articles for political or emotional bias to answer user question: {topic}.
+
+All articles to be analyzed for the user query/question:
+---
+{articles}
+---
+
+Return exactly:
+
+VERDICT: {verdict}
+SUMMARY: <short summary of those findings and conclude the user query wether the question is bias or not>
+"""
+
+    last_error = None
+    for attempt in range(GROQ_MAX_RETRIES):
+        try:
+            response = Groq(api_key=os.getenv("GROQ_API_KEY")).chat.completions.create(
+                model=GROQ_MODEL,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return parse_response_group(response.choices[0].message.content)
+        except Exception as e:
+            last_error = e
+            if _is_rate_limit_error(e) and attempt < GROQ_MAX_RETRIES - 1:
+                wait = _retry_after(e) * (2 ** attempt)
+                print(f"Rate limit (group summary), retrying in {wait:.0f}s...")
+                time.sleep(wait)
+            else:
+                break
+    print(f"Ollama error: {last_error}")
+    return {
+        "score": 0,
+        "label": "Unavailable",
+        "indicators": [],
+        "summary": "Summary bias analysis unavailable"
+    }
 
 
 def get_comparative_framings(articles: list) -> list:
@@ -504,7 +536,7 @@ def get_related_news(topic):
     combined = [a for a in combined if (a.get("bias") or {}).get("analyzable", True)]
 
     # Verdict from quantitative bias scores (no extra LLM call)
-    group_summary = compute_verdict_from_scores(combined)
+    group_summary = compute_verdict_from_scores(combined,topic=topic)
 
     seen = set()
     unique_articles = []
