@@ -257,8 +257,8 @@ data.articles.forEach((article, i) => {
 console.log(article.bias)
 const bias = article.bias || {}
 
-const score = bias.score || 0
-const percent = ((score + 10) / 20) * 100
+const score = Math.max(0, Math.min(10, bias.score != null ? bias.score : 0))
+const percent = (score / 10) * 100
 biasbar_qualitative = "Not biased"
 if (percent === 0) {
     biasbar_qualitative = "Not biased"
