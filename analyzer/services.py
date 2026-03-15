@@ -15,6 +15,7 @@ load_dotenv()
 
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL","phi3:mini")
+GROQ_MODEL = "openai/gpt-oss-20b"
 
 
 # ----------------------------
@@ -63,7 +64,7 @@ SUMMARY: <short explanation>
         client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY"))
 
         response = await client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=GROQ_MODEL,
             messages=[{"role": "user", "content": prompt}]
         )
 
@@ -169,7 +170,7 @@ SUMMARY: <short summary of those findings and conclude the user query wether the
 
     try:
         response = Groq(api_key=os.getenv("GROQ_API_KEY")).chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=GROQ_MODEL,
             messages=[{"role": "user", "content": prompt}]
         )
 
