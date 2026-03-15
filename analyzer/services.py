@@ -12,7 +12,7 @@ import asyncio
 load_dotenv()
 
 NEWS_API_KEY = os.getenv("NEWS_API_KEY")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "phi3:mini")
 
 
 # ----------------------------
@@ -21,7 +21,7 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
 def get_article_content(url: str) -> str:
     try:
         headers = {
-            "User-Agent": "Mozilla/5.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
         response = requests.get(url, headers=headers, timeout=8)
@@ -51,6 +51,7 @@ Return exactly:
 
 SCORE: <number between -10 and +10, use the FULL range aggressively — obvious tabloid or opinionated pieces should score 8-10, balanced reporting should score around 0, truly neutral wire reports score -10>
 LABEL: <Far Left | Left | Center-Left | Center | Center-Right | Right | Far Right>
+CLAIMS: <2-5 claims stated>
 INDICATORS: <comma separated list>
 SUMMARY: <short explanation>
 """
@@ -71,6 +72,7 @@ SUMMARY: <short explanation>
         parsed = {
             "score": 0,
             "label": "Unavailable",
+            "claims": [],
             "indicators": [],
             "summary": "Bias analysis unavailable"
         }
@@ -83,6 +85,7 @@ def parse_response(text: str) -> dict:
     result = {
         "score": 0,
         "label": "Center",
+        "claims":[],
         "indicators": [],
         "summary": ""
     }
@@ -97,6 +100,10 @@ def parse_response(text: str) -> dict:
 
         elif line.startswith("LABEL:"):
             result["label"] = line.replace("LABEL:", "").strip()
+
+        elif line.startswith("CLAIMS:"):
+            raw = line.replace("CLAIMS:", "").strip()
+            result["claims"] = [i.strip() for i in raw.split(",") if i.strip()]
 
         elif line.startswith("INDICATORS:"):
             raw = line.replace("INDICATORS:", "").strip()
