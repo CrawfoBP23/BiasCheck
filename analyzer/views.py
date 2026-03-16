@@ -16,9 +16,21 @@ def search_news(request):
 
     start = time.time()
 
-    results = get_related_news(topic)
-    articles = results[0]
-    group_summary = results[1]
+    try:
+        results = get_related_news(topic)
+        articles = results[0]
+        group_summary = results[1]
+    except Exception as e:
+        elapsed = round(time.time() - start, 2)
+        # Surface Groq / analysis errors to the UI instead of hanging
+        return JsonResponse(
+            {
+                "error": "News bias analysis failed. This can happen if the AI backend (Groq) is unavailable or your API credits are exhausted.",
+                "details": str(e),
+                "elapsed": elapsed,
+            },
+            status=500,
+        )
 
     # #region agent log
     try:

@@ -308,6 +308,7 @@ document.getElementById("results").innerHTML = loadingHTML;
 
 const statusEl = document.getElementById("loading-status");
 const detailEl = document.getElementById("loading-detail");
+const resultsEl = document.getElementById("results");
 
 const stepInterval = setInterval(() => {
     stepIndex = (stepIndex + 1) % loadingSteps.length;
@@ -336,12 +337,52 @@ document.getElementById("group-summary").style.display = 'none';
 document.getElementById("framing-chart-wrap").style.display = 'none';
 
 let data;
+let errorMessage = null;
 try {
-    const response = await fetch(`/api/search/?topic=${topic}`);
-    data = await response.json();
+    const response = await fetch(`/api/search/?topic=${encodeURIComponent(topic)}`);
+    let payload = null;
+    try {
+        payload = await response.json();
+    } catch (e) {
+        // If JSON parsing fails, treat as generic error
+        errorMessage = "Could not read response from the server.";
+    }
+
+    if (!response.ok) {
+        // Backend surfaced a structured error (e.g., Groq / credit issue)
+        errorMessage =
+            (payload && (payload.error || payload.detail || payload.message)) ||
+            "The analysis service returned an error.";
+    } else {
+        if (payload && payload.error) {
+            // Explicit error field from backend even with 200
+            errorMessage = payload.error;
+        } else {
+            data = payload;
+        }
+    }
+} catch (e) {
+    errorMessage =
+        e && e.message
+            ? e.message
+            : "Network error while contacting the analysis service.";
 } finally {
     clearInterval(stepInterval);
     clearInterval(segmentInterval);
+}
+if (errorMessage) {
+    if (resultsEl) {
+        resultsEl.innerHTML = `
+            <div style="text-align:center;color:#b91c1c;padding:24px 16px;">
+                <h3 style="margin-top:0;">Could not complete bias analysis</h3>
+                <p style="margin:8px 0 4px;">${errorMessage}</p>
+                <p style="margin:4px 0 0;color:#666;font-size:14px;">
+                    This often happens if the AI provider (Groq) is down or the API credit has run out.
+                    Please try again later or contact the site owner.
+                </p>
+            </div>`;
+    }
+    return;
 }
 if (!data || !data.articles) {
     document.getElementById("results").innerHTML = "<p style='text-align:center;color:#666'>No results. Try another topic.</p>";
